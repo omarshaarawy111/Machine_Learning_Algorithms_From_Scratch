@@ -141,6 +141,10 @@ class SVC():
                     model = self._fit_binary(X_sub, binary_y)
                     model['cls_pair'] = (self.classes[i], self.classes[j])
                     self.models.append(model)
+                    
+        # Bias value and other theta values 
+        self.intercept_ = self.models[0]['b']   
+        self.coef_ = self.models[0]['theta']                     
 
     # Decision function for a single model
     def _get_score(self, X, model):
