@@ -224,6 +224,10 @@ class SVR():
                     self.alpha[i] = np.clip(self.alpha[i], -self.c, self.c)
                     self.b -= self.lr * error
 
+        # Bias value and other theta values 
+        self.intercept_ = self.models[0]['b']   
+        self.coef_ = self.models[0]['theta'] 
+        
     def predict(self, X):
         predictions = []
         for x in X:
