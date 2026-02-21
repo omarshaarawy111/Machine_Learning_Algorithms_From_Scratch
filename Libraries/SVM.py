@@ -125,14 +125,12 @@ class SVC():
             
         elif self.decision_function_shape == 'ovr':
             # One vs Rest
-            
             for c in self.classes:
                 binary_y = np.where(y == c, 1, -1)
                 self.models.append(self._fit_binary(X, binary_y))
 
         elif self.decision_function_shape == 'ovo':
             # One vs One
-            
             for i in range(n_classes):
                 for j in range(i + 1, n_classes):
                     idx = np.where((y == self.classes[i]) | (y == self.classes[j]))
@@ -141,10 +139,10 @@ class SVC():
                     model = self._fit_binary(X_sub, binary_y)
                     model['cls_pair'] = (self.classes[i], self.classes[j])
                     self.models.append(model)
-                    
+        
         # Bias value and other theta values 
         self.intercept_ = self.models[0]['b']   
-        self.coef_ = self.models[0]['theta']                     
+        self.coef_ = self.models[0]['theta']         
 
     # Decision function for a single model
     def _get_score(self, X, model):
@@ -174,7 +172,21 @@ class SVC():
                 for idx, p in enumerate(preds):
                     votes[idx, np.where(self.classes == p)[0][0]] += 1
             return self.classes[np.argmax(votes, axis=1)]
-
+    
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    # We take in cosideration multiclasification case and binary classofocation case
+    def predict_proba(self, X):
+        scores = []
+        if len(self.classes) <= 2:
+            scores = self._get_score(X, self.models[0])
+            probs_class_1 = 1 / (1 + np.exp(-scores))  
+            return np.vstack([1 - probs_class_1, probs_class_1]).T
+        else:
+            all_scores = np.array([self._get_score(X, m) for m in self.models])
+            exp_scores = np.exp(all_scores)
+            probas = exp_scores / np.sum(exp_scores, axis=0)
+            return probas.T  
     # Score 
     def score(self, X_new, y):
         # Return accuracy score of the model
@@ -225,9 +237,9 @@ class SVR():
                     self.b -= self.lr * error
 
         # Bias value and other theta values 
-        self.intercept_ = self.models[0]['b']   
-        self.coef_ = self.models[0]['theta'] 
-        
+        self.intercept_ = self.b
+        self.coef_ = self.alpha          
+
     def predict(self, X):
         predictions = []
         for x in X:

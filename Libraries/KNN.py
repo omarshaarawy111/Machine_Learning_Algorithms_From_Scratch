@@ -52,6 +52,22 @@ class KNN():
                 raise ValueError('Unknown task type.')    
 
         return np.array(y_pred)    
+    
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    def predict_proba(self, X):
+        probas = []
+        for x in X:
+            distances = np.array([self._distance(x, xi) for xi in self.X_train])
+            k_indices = np.argsort(distances)[:self.k]
+            k_labels = self.y_train[k_indices]
+            classes, counts = np.unique(k_labels, return_counts=True)
+            probs = np.zeros(len(np.unique(self.y_train)))
+            for c, count in zip(classes, counts):
+                idx = np.where(np.unique(self.y_train) == c)[0][0]
+                probs[idx] = count / self.k
+            probas.append(probs)
+        return np.array(probas)  
        
     # Score 
     def score(self, X_new, y):

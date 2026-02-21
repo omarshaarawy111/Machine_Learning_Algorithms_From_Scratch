@@ -77,7 +77,27 @@ class BaseNB():
                 self.feature_count[idx] = (X_c.sum(axis=0) + self.alpha) / (X_c.shape[0] + 2 * self.alpha)
 
         return self
-
+    
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    def predict_proba(self, X):
+        log_posteriors = np.zeros((self.n_classes, X.shape[0]))
+        for idx, c in enumerate(self.classes):
+            log_prior = np.log(self.classes_prior[idx] + 1e-9)
+            if self.method == 'gaussian':
+                log_likelihood_all = self.guassian_likelihood_log_prob(X, self.mean[idx], self.var[idx])
+                log_likelihood = log_likelihood_all[idx, :]
+            elif self.method == 'multinomial':
+                probs = np.clip(self.feature_count[idx], 1e-15, 1.0)
+                log_likelihood = X @ np.log(probs.T)
+            elif self.method == 'bernoulli':
+                probs = np.clip(self.feature_count[idx], 1e-15, 1 - 1e-15)
+                log_likelihood = X @ np.log(probs) + (1 - X) @ np.log(1 - probs)
+            log_posteriors[idx, :] = log_prior + log_likelihood
+        exp_post = np.exp(log_posteriors - np.max(log_posteriors, axis=0))
+        probas = exp_post / np.sum(exp_post, axis=0)
+        return probas.T  
+    
     # Predict    
     def predict(self, X):
         # Calculate log posterior probability for each class which will be log prior probability + log likelihood

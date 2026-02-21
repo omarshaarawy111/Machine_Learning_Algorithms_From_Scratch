@@ -1,86 +1,42 @@
-# Import all models to use them within bagging technique
-# Known that bagging work with only one base estimator cloning it within bootsreapped data with replacement
-from Libraries.LinearRegression import *
-from Libraries.LogisticRegression import *
-from Libraries.KNN import *
-from Libraries.SVM import *
-from Libraries.NaiveBayes import *
-from Libraries.DecisionTree import *
-from Libraries.RandomForest import *
-from Libraries.Voting import *
-
 import numpy as np
-# We need this copy for cloning base estimator
-import copy
 # For parallelism and working with multiple of cores 
 from joblib import Parallel, delayed
 
-# Bagging class for Classification and Regression
-# We work with the base class then inheritence happen to build the classification or regression bagging
-class BaggingBase():
+class VotingBase():
 
     # Initialization
-    def __init__(self, base_estimator = None, n_estimators = 10, random_state = None, n_jobs = None):
-        # Here we gonna define the base estimator later in classification or regression
+    def __init__(self, estimators = None, n_jobs = None):
+        # Here we gonna define the estimators used later in classification or regression
         # Others is the same default paramerts of API
         # n_jobs=None or 1 is the same and -1 means using all cores
-        self.base_estimator = base_estimator
-        self.n_estimators = n_estimators
-        self.random_state = random_state
+        self.estimators = estimators
         self.n_jobs = n_jobs
         self.models = []
 
-
-    # We have helper functions
-    # Bootstrapping samples function
-    def _bootstrap_sample(self, X, y):
-        # Here we fetch the number of samples from x 
-        # X is combination of samples x features
-        n_samples = X.shape[0]
-
-        # Every time we select random numbers of indice with enabling replacement option so we can use same indice in more models
-        # So we can get the sample 0, 1 or multiple of times 
-        # Here we choose randomly from all samples and we need the size of bootstrapped data = size of orginal data that is why replace option should be applied
-        indices = np.random.choice(n_samples, n_samples, replace=True)
-
-        # Here we return the bootstrapped data
-        return X[indices], y[indices]
-
-    # Clone function
-    def _clone(self):
-        # Here we use the library of copy to return clone of base_estimator
-        # The idea here to siolate object per model
-        # It is only for learning phase
-        return copy.deepcopy(self.base_estimator)
-    
+   
     # Modeling function
     # We will have one fit function per every model then combine all fits in general fit function for all memebers
     # Fit single model
-    def _fit_single_model(self, X, y):
-        # First we recieve the bootstrapped data to model it from given X and y
-        X_samples, y_samples = self._bootstrap_sample(X, y)
-        
-        # Get cloned copy of base_estimator
-        # Every time we gonna pass the object of base estimator
-        cloned_model = self._clone()
-
+    def _fit_single_model(self,current_estimator, X, y):      
+        # Get estimator from the list of estimators and fit it directly 
+        # No need to create helper function like _make_estimator or _clone
+        # Every time we gonna pass the object of current estimator
         # We use the fit function for specific single model which was already built from scratch before
-        cloned_model.fit(X_samples, y_samples)
+        # Here no bottstrapped data so we work with X and y directly
+        current_estimator.fit(X, y)
 
         # Every time we return the fitted model
-        return cloned_model
+        return current_estimator
     
     # Fit all models function
     # Here we gather all fitted models 
     def fit(self, X, y):
-        # We set random state wuth the number user entered and seed it
-        if self.random_state is not None:
-            np.random.seed(self.random_state)
-
+        # No random state exist
         # Loop over estimator number collecting all fitted models in one place to be ready for test phase
+        # We call it n_estimators but it is actually a list of estimators not a number
         # We call _fit_single_model every time
         self.models = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._fit_single_model)(X, y) for estimator in range(self.n_estimators)
+            delayed(self._fit_single_model)(curtrent_estimator, X, y) for curtrent_estimator in self.estimators
         )    
         
         # We return nothing
@@ -89,11 +45,11 @@ class BaggingBase():
     # The same structure of fit will be built for predict
     # We will have one predict function per every model then combine all predicts in general predict function for all memebers
     # Predict single model
-    def _predict_single_model(self, cloned_model, X):
+    def _predict_single_model(self, current_estimator, X):
         # We use the predict function for specific single model which was already built from scratch before
         # We use test data
-        return cloned_model.predict(X)
-
+        return current_estimator.predict(X)
+    
     # Precit all models function
     # Here we gather all precited models 
     def predict(self, X):
@@ -111,27 +67,34 @@ class BaggingBase():
         
         # After collecting predictions we are ready for aggregation
         return self._aggregate(predictions)
-
+    
     # Aggregation function    
     # Aggregation to decide the final output
     # Here we create just abstract so after inheritence each of classification and regression has its own methodoly of aggregation for final prediction
     def _aggregate(self, predictions):
         raise NotImplementedError  
-
-# Bagging ensemble Classifier class
-class BaggingClassifier(BaggingBase):
+    
+# Voting ensemble Classifier class
+class VotingClassifier(VotingBase):
 
     # Intialization
     # We pass known numbers of paramters to parent class and also at the same time get known numbers of paramters
-    def __init__(self, base_estimator=None, n_estimators=10, random_state=None, n_jobs=1):
+    def __init__(self, estimators = None, n_jobs=1, voting = 'hard'):
         
-        # Default estimator for classification as API
-        if base_estimator is None:
-            base_estimator = DecisionTreeClassifier()
+         # Here we handle if not estimator we raise and error
+        if estimators is None:
+            raise ValueError('No estimators have been passed.')
+        
+        super().__init__(estimators, n_jobs)
 
-        super().__init__(base_estimator, n_estimators, random_state, n_jobs)
+        # Here handling error of voting know that default is hard voting
+        if voting not in ("hard", "soft"):
+            raise ValueError("Voting must be 'hard' or 'soft'.")
+        
+        self.voting = voting
 
-    # Aggregation function    
+    # Aggregation function  
+    # This represents hard voting which is the same as bagging 
     def _aggregate(self, predictions):
 
         # Get number of samples as every sample wich will be columns as every column represents sample and indexes represent models  
@@ -159,27 +122,51 @@ class BaggingClassifier(BaggingBase):
         # Return the final predictions of the test data
         return final_predictions
     
+    # Predict function
+    def predict(self, X):
+        if self.voting == "soft":
+            # Get probabilities from all models
+            probas = Parallel(n_jobs=self.n_jobs)(
+                delayed(model.predict_proba)(X) for model in self.models
+            )
+
+            # shape is 3D: (n_models, n_samples, n_classes)
+            probas = np.array(probas) 
+
+            # Average probabilities across models
+            # shape is 2D: (n_samples, n_classes)
+            avg_proba = np.mean(probas, axis=0)  
+
+            # Step 3: Choose class with highest probability
+            # Shape is 1D: (n_samples,) and value is the class label with highest average probability
+            final_labels = np.argmax(avg_proba, axis=1)  
+
+            return final_labels
+        
+        # Hard voting logic is the same depends on base class
+        return super().predict(X)
+
     # Score
     def score(self, X, y):
         # Return accuracy score 
         return np.mean(self.predict(X) == y)
 
-# Bagging ensemble Tree Regressor class
-class BaggingRegressor(BaggingBase):
+# Voting ensemble Tree Regressor class
+class VotingRegressor(VotingBase):
 
     # Intialization
     # We pass known numbers of paramters to parent class and also at the same time get known numbers of paramters
-    def __init__(self, base_estimator=None, n_estimators=10, random_state=None, n_jobs=1):
+    def __init__(self, estimators = None, n_jobs=1):
         
-        # Default estimator for classification as API
-        if base_estimator is None:
-            base_estimator = DecisionTreeRegressor()
+        # Here we handle if not estimator we raise and error
+        if estimators is None:
+            raise ValueError('No estimators have been passed.')
 
-        super().__init__(base_estimator, n_estimators, random_state, n_jobs)
+        super().__init__(estimators, n_jobs)
 
     # Aggregation function 
     def _aggregate(self, predictions):
-        # We just return the mean of every sample wich will be columns as every column represents sample and indexes represent trees
+        # We just return the mean of every sample wich will be columns as every column represents sample and indexes represent models
         return np.mean(predictions, axis=0)  
   
     # Score

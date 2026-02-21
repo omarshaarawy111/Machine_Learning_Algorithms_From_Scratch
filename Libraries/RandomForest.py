@@ -1,3 +1,10 @@
+# Known that random forest is bagging + decision trees but with some edits 
+# So academiacally we just inherit bagging + decision trees and add edits
+# Known that random forest work with only one base estimator (Descision Tree) cloning it within bootsreapped data with replacement
+# But for API Design it is seperated from bagging and no inherit happended and we just duplicate bagging functions from scratch
+from Libraries.DecisionTree import *
+from Libraries.Bagging import *
+
 import numpy as np
 # For parallelism and working with multiple of cores 
 from joblib import Parallel, delayed

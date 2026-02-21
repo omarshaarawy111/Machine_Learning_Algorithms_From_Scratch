@@ -63,6 +63,7 @@ class LogisticRegression():
         self.coef_ = self.theta[1:]
 
     # Predict probabilities
+    # This function is ready to use in soft oting later
     def predict_proba(self, X):
         # Get number of rows of test data
         m = X.shape[0]

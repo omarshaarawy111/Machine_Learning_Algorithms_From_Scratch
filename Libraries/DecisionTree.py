@@ -296,6 +296,20 @@ class DecisionTreeClassifier(BaseDecisionTree):
         # We retrieve index which is the most label occur
         return np.bincount(y).argmax()
 
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    def predict_proba(self, X):
+        def traverse_prob(x, node):
+            if node.value is not None:
+                return node.value_dist  
+            if x[node.feature] <= node.threshold:
+                return traverse_prob(x, node.left)
+            return traverse_prob(x, node.right)
+        probas = []
+        for x in X:
+            probas.append(traverse_prob(x, self.root))
+        return np.array(probas)  
+    
     # Score
     def score(self, X, y):
         # Return accuracy score 
