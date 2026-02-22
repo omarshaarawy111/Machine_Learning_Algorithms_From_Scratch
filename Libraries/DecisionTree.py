@@ -6,13 +6,15 @@ from collections import Counter
 class Node():
 
     # Initialization
-    def __init__(self, feature = None, threshold = None, left = None, right = None, value = None):
+    def __init__(self, feature = None, threshold = None, left = None, right = None, value = None, value_dist = None):
         # We need to intailize everything of node properties (features, threshold, left, right, value)
         self.feature = feature
         self.threshold = threshold
         self.left = left
         self.right = right
         self.value = value 
+        # For classifier predict_proba
+        self.value_dist = value_dist
         
 # We work with the base class then inheritence happen to build the classification or regression tree
 class BaseDecisionTree():
@@ -45,7 +47,7 @@ class BaseDecisionTree():
     def _entropy(self, y):
         # We collect probabilities then calculate
         probs = np.bincount(y) / len(y)
-        # Add stability to avoid log(0) as the result is \(\log _{2}(0)\) is undefined. 
+        # Add stability to avoid log(0) as the result is \(\log _{2}(0)\) is undefined. 
         return -np.sum(probs * np.log2(probs + 1e-9))
     
     def _mse(self, y):
@@ -170,7 +172,8 @@ class BaseDecisionTree():
         # The case of leaf node is automatic stopping criteria
         # The cases of inaccurate number of samples in the node or exceed the max depth is hyper paramter stopping cirteria
         if self._is_pure(y) or n_samples < self.min_samples_split or (self.max_depth is not None and depth >= self.max_depth):
-            return Node(value=self._leaf_value(y))
+            leaf_value, leaf_dist = self._leaf_value(y)
+            return Node(value=leaf_value, value_dist=leaf_dist)
 
         # This part is related to random forest as here we don't want to work with all features to smaller correlation between tress, higher variance and cut the dominance of one feature
         # Note that it is just hyper parametr
@@ -195,7 +198,8 @@ class BaseDecisionTree():
         # The case of non split feature is automatic stopping criteria
         # The cases of min impurity decrease is hyper paramter stopping cirteria
         if split_feature is None or best_gain < self.min_impurity_decrease:
-            return Node(value=self._leaf_value(y))
+            leaf_value, leaf_dist = self._leaf_value(y)
+            return Node(value=leaf_value, value_dist=leaf_dist)
 
         # Step 2 ---> assign samples in tree
         # Samples role
@@ -210,7 +214,8 @@ class BaseDecisionTree():
         # The cases of inaccurate number of samples in the leaf (after split)
         # We can't gathering all stopping conditions at one place as each step has its own stopping criteria
         if left_mask.sum() < self.min_samples_leaf or right_mask.sum() < self.min_samples_leaf :
-            return Node(value=self._leaf_value(y))
+            leaf_value, leaf_dist = self._leaf_value(y)
+            return Node(value=leaf_value, value_dist=leaf_dist)
 
         # Recusive case
         left = self._build_tree(X[left_mask], y[left_mask], depth + 1)
@@ -275,7 +280,7 @@ class BaseDecisionTree():
         if node.value is not None:
             # Stop case
             # For leaf node ---> it has value of course
-            print(indent + "Leaf:", node.value.round(2))
+            print(indent + "Leaf:", np.round(node.value, 2))
         else:
             # Recursive case
             # Here the 2nd importance of getting threshold for drawing
@@ -291,10 +296,29 @@ class DecisionTreeClassifier(BaseDecisionTree):
     def __init__(self, criterion="gini", **kwargs):
         super().__init__(criterion=criterion, **kwargs)
 
+    # Fit
+    def fit(self, X, y):
+        # Store classes information for predict_proba (API style)
+        self.classes_ = np.unique(y)
+        self.n_classes_ = len(self.classes_)
+
+        # The fit is building our tree and save it in root as symbol of our journey starting with pre prunning hyper paramerts
+        self.root = self._build_tree(X, y, 0)
+        
+        # The decision of post pruning based on hyper  cc_aplpha greater than zero
+        if self.ccp_alpha > 0:
+            self._prune(self.root)
+
     # Here the value leaf is the most majority class
     def _leaf_value(self, y):
         # We retrieve index which is the most label occur
-        return np.bincount(y).argmax()
+        value = np.bincount(y).argmax()
+
+        # For classifier predict_proba we need distribution of classes in leaf
+        counts = np.bincount(y, minlength=self.n_classes_)
+        value_dist = counts / counts.sum()
+
+        return value, value_dist
 
     # Predict probabilities
     # This function is ready to use in soft oting later
@@ -326,7 +350,7 @@ class DecisionTreeRegressor(BaseDecisionTree):
 
     # Here the value leaf is the mean of y values
     def _leaf_value(self, y):
-        return np.mean(y)
+        return np.mean(y), None
 
     # Score
     def score(self, X, y):

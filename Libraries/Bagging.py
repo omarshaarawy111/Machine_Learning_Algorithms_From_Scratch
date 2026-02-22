@@ -159,6 +159,15 @@ class BaggingClassifier(BaggingBase):
         # Return the final predictions of the test data
         return final_predictions
     
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    def predict_proba(self, X):
+        probas = Parallel(n_jobs=self.n_jobs)(
+            delayed(model.predict_proba)(X) for model in self.models
+        )
+        probas = np.array(probas)
+        return np.mean(probas, axis=0)
+    
     # Score
     def score(self, X, y):
         # Return accuracy score 
