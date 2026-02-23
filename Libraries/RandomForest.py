@@ -20,6 +20,7 @@ class RandomForestBase():
         # min_samples_split = 2, min_samples_leaf = 1 these are mandatory cause they are logically the min amount to split or work rather than it isn't logical
         # min_impurity_decrease = 0.0, ccp_alpha = 0.0 becasue the default is no pruning till you decide
         # There are common factors that will be passed from random fores to called trees like max_depth, min_samples_split, min_samples_leaf, max_features which was none there but here will be intialized, random_state and n_jobs
+        # n_jobs=None or 1 is the same and -1 means using all cores
         # We can specifiy max features to use per decsion tree with three ways (log2, sqrt, number)
         # Here base estimator is desicion tree and no need to specifiy it
         self.n_estimators = n_estimators
@@ -88,6 +89,13 @@ class RandomForestBase():
         # Create tree estimator
         # Every time we gonna pass the max_features using get_max_features function
         tree = self._make_estimator(self._get_max_features(n_features))
+
+        # For classification predict_proba stability:
+        # We force all trees to have the same number of classes and the same class order
+        # Because bootstrapped y_samples can miss one class which breaks probability shapes later
+        if hasattr(self, "classes_") and hasattr(self, "n_classes_"):
+            tree.classes_ = self.classes_
+            tree.n_classes_ = self.n_classes_
 
         # We use the fit function for specific single tree which was already built from scratch before
         tree.fit(X_samples, y_samples)
@@ -178,6 +186,15 @@ class RandomForestClassifier(RandomForestBase):
             max_features=max_features
         )
     
+    # Fit
+    def fit(self, X, y):
+        # Store classes information for predict_proba (API style)
+        self.classes_ = np.unique(y)
+        self.n_classes_ = len(self.classes_)
+
+        # Continue base fit to train all trees
+        return super().fit(X, y)
+    
     # Aggregation function    
     def _aggregate(self, predictions):
 
@@ -205,6 +222,18 @@ class RandomForestClassifier(RandomForestBase):
 
         # Return the final predictions of the test data
         return final_predictions
+    
+    # Predict probabilities
+    # This function is ready to use in soft oting later
+    def predict_proba(self, X):
+        # collect probas from each tree: (n_trees, n_samples, n_classes)
+        probas = Parallel(n_jobs=self.n_jobs)(
+            delayed(model.predict_proba)(X) for model in self.models
+        )
+        probas = np.array(probas)
+
+        # average over trees
+        return np.mean(probas, axis=0)
     
     # Score
     def score(self, X, y):
