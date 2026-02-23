@@ -21,7 +21,7 @@ class BaseDecisionTree():
 
     # Initialization
     def __init__(self, criterion, max_depth = None, min_samples_split = 2, min_samples_leaf = 1, max_features = None, min_impurity_decrease = 0.0, ccp_alpha = 0.0):
-        # Here we intialize tree properties there is mandatory and optional propeties based on use case and also your prunning decision   
+        # Here we intialize tree properties there is mandatory and optional propeties based on use case and also your prunning decision    
         # min_samples_split = 2, min_samples_leaf = 1 these are mandatory cause they are logically the min amount to split or work rather than it isn't logical
         # min_impurity_decrease = 0.0, ccp_alpha = 0.0 becasue the default is no pruning till you decide
         self.criterion = criterion
@@ -37,36 +37,47 @@ class BaseDecisionTree():
     # Impurity functions
     # Categorical impurities
     # Gini
-    def _gini(self, y):
-        # We collect probabilities then calculate
-        probs = np.bincount(y) / len(y)
-        return 1 - np.sum(probs ** 2)
+    def _gini(self, y, sample_weight):
+        # We calculate probabilities based on the sum of weights for each class
+        total_w = np.sum(sample_weight)
+        if total_w == 0: return 0
+        probs_sq = 0
+        for c in np.unique(y):
+            p = np.sum(sample_weight[y == c]) / total_w
+            probs_sq += p ** 2
+        return 1 - probs_sq
     
     # Numerical impurity
     # Entropy
-    def _entropy(self, y):
-        # We collect probabilities then calculate
-        probs = np.bincount(y) / len(y)
-        # Add stability to avoid log(0) as the result is \(\log _{2}(0)\) is undefined. 
-        return -np.sum(probs * np.log2(probs + 1e-9))
+    def _entropy(self, y, sample_weight):
+        # We calculate probabilities based on the sum of weights for each class
+        total_w = np.sum(sample_weight)
+        if total_w == 0: return 0
+        ent = 0
+        for c in np.unique(y):
+            p = np.sum(sample_weight[y == c]) / total_w
+            ent -= p * np.log2(p + 1e-9)
+        return ent
     
-    def _mse(self, y):
-        # Get the MSE = varinace
-        return np.mean((y - np.mean(y)) ** 2)
+    def _mse(self, y, sample_weight):
+        # Get the weighted MSE
+        if np.sum(sample_weight) == 0: return 0
+        weighted_mean = np.average(y, weights=sample_weight)
+        return np.average((y - weighted_mean) ** 2, weights=sample_weight)
     
     # Accumlative function to make all criterion in one place
-    def _impurity(self, y):
+    def _impurity(self, y, sample_weight):
         if self.criterion == "gini":
-            return self._gini(y)
+            return self._gini(y, sample_weight)
         
         elif self.criterion == "entropy":
-            return self._entropy(y)
+            return self._entropy(y, sample_weight)
         
         elif self.criterion == "mse":
-            return self._mse(y)
+            return self._mse(y, sample_weight)
 
     # Best split function
-    def _best_split(self, X, y, features=None):
+    def _best_split(self, X, y, sample_weight, features=None):
         # Here we need to have the best split by having samples and features
         # This function to get the best feature with all related properties and later in _build_tree we will assign samples actually
         # My target is to reach the best info gain or gini gain 
@@ -79,7 +90,7 @@ class BaseDecisionTree():
         split_feature, split_threshold = None, None
 
         # Calcualte the parent impurity so later we calcualte info gain or gini gain 
-        parent_impurity = self._impurity(y)
+        parent_impurity = self._impurity(y, sample_weight)
 
         # Number of features
         n_features = X.shape[1]
@@ -118,16 +129,16 @@ class BaseDecisionTree():
                     continue
 
                 # Target role to calculate gian info or gini info
-                left_y = y[left_mask]
-                right_y = y[right_mask]
+                left_y, left_w = y[left_mask], sample_weight[left_mask]
+                right_y, right_w = y[right_mask], sample_weight[right_mask]
 
-                # total number of unique target
-                n_y = len(y)    
+                # total number of weights
+                total_w = np.sum(sample_weight) 
 
                 # Average weighted impurity
                 weighted_average_impurity = (
-                    len(left_y) / n_y * self._impurity(left_y)
-                    + len(right_y) / n_y * self._impurity(right_y)
+                    np.sum(left_w) / total_w * self._impurity(left_y, left_w)
+                    + np.sum(right_w) / total_w * self._impurity(right_y, right_w)
                 )
 
                 # Gain info = Gini info
@@ -158,12 +169,12 @@ class BaseDecisionTree():
         return len(np.unique(y)) == 1
 
     # Here we create just abstract so after inheritence each of classification and regression has its own methodoly of leaf_value for prediction later
-    def _leaf_value(self, y):
+    def _leaf_value(self, y, sample_weight):
         raise NotImplementedError    
 
     # For building our tree 
     # This is the most important function with the help of other helper functions
-    def _build_tree(self, X, y, depth):  
+    def _build_tree(self, X, y, sample_weight, depth):  
         # Ofcourse we need to retrieve smaples and fatures count
         n_samples, n_features = X.shape
 
@@ -172,7 +183,7 @@ class BaseDecisionTree():
         # The case of leaf node is automatic stopping criteria
         # The cases of inaccurate number of samples in the node or exceed the max depth is hyper paramter stopping cirteria
         if self._is_pure(y) or n_samples < self.min_samples_split or (self.max_depth is not None and depth >= self.max_depth):
-            leaf_value, leaf_dist = self._leaf_value(y)
+            leaf_value, leaf_dist = self._leaf_value(y, sample_weight)
             return Node(value=leaf_value, value_dist=leaf_dist)
 
         # This part is related to random forest as here we don't want to work with all features to smaller correlation between tress, higher variance and cut the dominance of one feature
@@ -191,14 +202,14 @@ class BaseDecisionTree():
         # Return best_gain we will use it as stopping criteria for min impurity decrease
         # Return split_feature to work with and build tree
         # Return split_threshold to assign features in tree
-        best_gain, split_feature, split_threshold = self._best_split(X, y, features_idx)
+        best_gain, split_feature, split_threshold = self._best_split(X, y, sample_weight, features_idx)
 
         # Stop case
         # Stopping criteria (pre prunning)
         # The case of non split feature is automatic stopping criteria
         # The cases of min impurity decrease is hyper paramter stopping cirteria
         if split_feature is None or best_gain < self.min_impurity_decrease:
-            leaf_value, leaf_dist = self._leaf_value(y)
+            leaf_value, leaf_dist = self._leaf_value(y, sample_weight)
             return Node(value=leaf_value, value_dist=leaf_dist)
 
         # Step 2 ---> assign samples in tree
@@ -214,12 +225,12 @@ class BaseDecisionTree():
         # The cases of inaccurate number of samples in the leaf (after split)
         # We can't gathering all stopping conditions at one place as each step has its own stopping criteria
         if left_mask.sum() < self.min_samples_leaf or right_mask.sum() < self.min_samples_leaf :
-            leaf_value, leaf_dist = self._leaf_value(y)
+            leaf_value, leaf_dist = self._leaf_value(y, sample_weight)
             return Node(value=leaf_value, value_dist=leaf_dist)
 
         # Recusive case
-        left = self._build_tree(X[left_mask], y[left_mask], depth + 1)
-        right = self._build_tree(X[right_mask], y[right_mask], depth + 1)
+        left = self._build_tree(X[left_mask], y[left_mask], sample_weight[left_mask], depth + 1)
+        right = self._build_tree(X[right_mask], y[right_mask], sample_weight[right_mask], depth + 1)
 
         # We return Node  bacause we need all information about tree so we can move through it in prediction knowing conditions
         return Node(split_feature, split_threshold, left, right)   
@@ -228,13 +239,13 @@ class BaseDecisionTree():
     def _prune(self, node):
         # We pass the tree for the function to post prune
         if node.left is None or node.right is None:
-            return self._impurity(np.array([node.value])), 1
+            return self._impurity(np.array([node.value]), np.array([1.0])), 1
 
         left_err, left_leaves = self._prune(node.left)
         right_err, right_leaves = self._prune(node.right)
 
         subtree_error = left_err + right_err
-        leaf_error = self._impurity(np.array([node.value]))
+        leaf_error = self._impurity(np.array([node.value]), np.array([1.0]))
 
         if leaf_error + self.ccp_alpha <= subtree_error:
             node.left = None
@@ -244,9 +255,16 @@ class BaseDecisionTree():
         return subtree_error, left_leaves + right_leaves
 
     # Fit
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weight=None):
+        # We initialize weights as ones if not provided for standard tree operation
+        # This is very critical for using within boosting as we work with weights not counts 
+        # So this will be enabled in the case of weights and versa
+        if sample_weight is None:
+            # We create ones as weights if there is no weights as work with ones is the same as work with counts
+            sample_weight = np.ones(X.shape[0])
+
         # The fit is building our tree and save it in root as symbol of our journey starting with pre prunning hyper paramerts
-        self.root = self._build_tree(X, y, 0)
+        self.root = self._build_tree(X, y, sample_weight, 0)
         
         # The decision of post pruning based on hyper  cc_aplpha greater than zero
         if self.ccp_alpha > 0:
@@ -297,26 +315,25 @@ class DecisionTreeClassifier(BaseDecisionTree):
         super().__init__(criterion=criterion, **kwargs)
 
     # Fit
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weight=None):
         # Store classes information for predict_proba (API style)
         self.classes_ = np.unique(y)
         self.n_classes_ = len(self.classes_)
-
-        # The fit is building our tree and save it in root as symbol of our journey starting with pre prunning hyper paramerts
-        self.root = self._build_tree(X, y, 0)
         
-        # The decision of post pruning based on hyper  cc_aplpha greater than zero
-        if self.ccp_alpha > 0:
-            self._prune(self.root)
+        # Standard fit from parent
+        super().fit(X, y, sample_weight)
 
-    # Here the value leaf is the most majority class
-    def _leaf_value(self, y):
-        # We retrieve index which is the most label occur
-        value = np.bincount(y).argmax()
+    # Here the value leaf is the most weighted majority class
+    def _leaf_value(self, y, sample_weight):
+        # We retrieve class with the highest sum of weights
+        weighted_counts = np.zeros(self.n_classes_)
+        for i, c in enumerate(self.classes_):
+            weighted_counts[i] = np.sum(sample_weight[y == c])
+            
+        value = self.classes_[np.argmax(weighted_counts)]
 
-        # For classifier predict_proba we need distribution of classes in leaf
-        counts = np.bincount(y, minlength=self.n_classes_)
-        value_dist = counts / counts.sum()
+        # For classifier predict_proba we need weighted distribution of classes in leaf
+        value_dist = weighted_counts / (np.sum(weighted_counts) + 1e-9)
 
         return value, value_dist
 
@@ -348,9 +365,9 @@ class DecisionTreeRegressor(BaseDecisionTree):
     def __init__(self, **kwargs):
         super().__init__(criterion="mse", **kwargs)
 
-    # Here the value leaf is the mean of y values
-    def _leaf_value(self, y):
-        return np.mean(y), None
+    # Here the value leaf is the weighted mean of y values
+    def _leaf_value(self, y, sample_weight):
+        return np.average(y, weights=sample_weight), None
 
     # Score
     def score(self, X, y):
