@@ -9,11 +9,10 @@ from Libraries.SVM import *
 from Libraries.NaiveBayes import *
 from Libraries.DecisionTree import *
 from Libraries.RandomForest import *
-from Libraries.Bagging import *
-import sys, importlib, shutil
-shutil.rmtree("Libraries/__pycache__", ignore_errors=True)
-sys.modules.pop("Libraries.RandomForest", None)
-importlib.invalidate_caches()
+from Libraries.Voting import *
+from Libraries.AdaBoost import *
+from Libraries.GradientBoost import *
+
 
 import numpy as np
 # For parallelism and working with multiple of cores
@@ -120,10 +119,11 @@ class VotingClassifier(VotingBase):
         # In case of soft voting, all estimators must support predict_proba
         if self.voting == "soft":
             for i, est in enumerate(self.estimators):
-                if not hasattr(est, "predict_proba"):
+                # Use getattr with a default to be safer
+                func = getattr(est, "predict_proba", None)
+                if func is None or not callable(func):
                     raise ValueError(
-                        f"Estimator at index {i} ({type(est).__name__}) does not support predict_proba(), "
-                        "so soft voting cannot be used."
+                        f"Estimator at index {i} ({type(est).__name__}) does not support predict_proba()."
                     )
 
         # Continue base fit to train all models

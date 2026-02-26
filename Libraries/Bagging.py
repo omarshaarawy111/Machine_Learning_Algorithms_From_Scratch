@@ -1,5 +1,3 @@
-# Import all models to use them within bagging technique
-# Known that bagging work with only one base estimator cloning it within bootsreapped data with replacement
 from Libraries.LinearRegression import *
 from Libraries.LogisticRegression import *
 from Libraries.KNN import *
@@ -8,6 +6,12 @@ from Libraries.NaiveBayes import *
 from Libraries.DecisionTree import *
 from Libraries.RandomForest import *
 from Libraries.Voting import *
+from Libraries.AdaBoost import *
+from Libraries.GradientBoost import *
+import sys, importlib, shutil
+shutil.rmtree("Libraries/__pycache__", ignore_errors=True)
+sys.modules.pop("Libraries.RandomForest", None)
+importlib.invalidate_caches()
 
 import numpy as np
 # We need this copy for cloning base estimator
