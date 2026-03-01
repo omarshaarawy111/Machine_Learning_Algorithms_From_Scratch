@@ -456,6 +456,7 @@ class GradientBoostClassifier(GradientBoostBase):
         y = np.asarray(y)
         return np.mean(self.predict(X) == y)
 
+# Gradient Boost Regressor class
 class GradientBoostRegressor(GradientBoostBase):
     
     # Initialization
