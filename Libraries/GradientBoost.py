@@ -610,4 +610,4 @@ class GradientBoostRegressor(GradientBoostBase):
 
     # Score
     def score(self, X, y):
-        return np.mean((self.predict(X) - y) ** 2)  # MSE
+        return np.mean((self.predict(X) - y) ** 2)  

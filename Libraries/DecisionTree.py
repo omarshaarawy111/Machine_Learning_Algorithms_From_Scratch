@@ -102,7 +102,7 @@ class BaseDecisionTree():
         for feature in features:
             # First we decalre the thresholds for internal splits
             # Thresholds come from features itself so coming from x
-            # As we know acedemically that continuos values (nuu=merical features) we take the midpoint between each pairs
+            # As we know acadeemically that continuos values (num=numerical features) we take average but here we take the midpoint between each pairs
             # And for discrete values (Categorical features) we take the unique labels
             # Preprocessing for data happen and eventually we got numbers wether it is categorical features or numerical one
             # So in both cases sickit learn API take the midpoint as midpoint covers all cases and get less number of thresholds
@@ -180,6 +180,7 @@ class BaseDecisionTree():
 
         # Stop case
         # Stopping criteria (pre prunning)
+        # Preprunning within node
         # The case of leaf node is automatic stopping criteria
         # The cases of inaccurate number of samples in the node or exceed the max depth is hyper paramter stopping cirteria
         if self._is_pure(y) or n_samples < self.min_samples_split or (self.max_depth is not None and depth >= self.max_depth):
@@ -193,6 +194,7 @@ class BaseDecisionTree():
         # Make sure we adjust that parametr
         if self.max_features is not None:
             # Make it random number from predefined range 
+            # Replace  = False so we won't duplicate feature
             features_idx = np.random.choice(
                 n_features, self.max_features, replace=False
             )
@@ -206,6 +208,7 @@ class BaseDecisionTree():
 
         # Stop case
         # Stopping criteria (pre prunning)
+        # Preprunning within leaves
         # The case of non split feature is automatic stopping criteria
         # The cases of min impurity decrease is hyper paramter stopping cirteria
         if split_feature is None or best_gain < self.min_impurity_decrease:
@@ -217,6 +220,7 @@ class BaseDecisionTree():
         # We have left and right children
         # Left samples gonna be less or equal threshold
         # Right samples gonna be other wise
+        # Now we work with the best split (best feature + best threshold) after test and assign samples
         left_mask = X[:, split_feature] <= split_threshold
         right_mask = ~left_mask
 

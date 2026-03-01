@@ -2,16 +2,27 @@
 # Known that voting work with mulitple of estimators with the same data set
 # So no bootstrapping 
 # We have the same idea of parallelism and voting with extra feature of soft voting so we work with probablities with pre aggregate and hard voting is after aggregate which is the same idea of bagging
-from Libraries.LinearRegression import *
-from Libraries.LogisticRegression import *
-from Libraries.KNN import *
-from Libraries.SVM import *
-from Libraries.NaiveBayes import *
-from Libraries.DecisionTree import *
-from Libraries.RandomForest import *
-from Libraries.Voting import *
-from Libraries.AdaBoost import *
-from Libraries.GradientBoost import *
+# Import all models to use them within bagging technique
+# Known that bagging work with only one base estimator cloning it within bootsreapped data with replacement
+for i in range(2):
+    try:
+        from Libraries.LinearRegression import *
+        from Libraries.LogisticRegression import *
+        from Libraries.KNN import *
+        from Libraries.SVM import *
+        from Libraries.NaiveBayes import *
+        from Libraries.DecisionTree import *
+        from Libraries.RandomForest import *
+        from Libraries.Voting import *
+        from Libraries.AdaBoost import *
+        from Libraries.GradientBoost import *
+        from Libraries.XGradientBoost import *
+        import sys, importlib, shutil
+        shutil.rmtree("Libraries/__pycache__", ignore_errors=True)
+        sys.modules.pop("Libraries.RandomForest", None)
+        importlib.invalidate_caches()
+    except:
+        continue    
 
 
 import numpy as np
