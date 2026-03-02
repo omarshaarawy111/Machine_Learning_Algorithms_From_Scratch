@@ -123,7 +123,8 @@ class Kmeans():
         return np.mean(silhouette_vals)    
     
     # Fit
-    def fit(self, X):
+    def fit_predict(self, X):
+        # We call it fit_predict as we not only calculate distances but also assign lables and it is logic to need assigning wether it is during train (fit_predict) or for new data coming (predict)
         # Convert x to array
         X = np.array(X)
 
