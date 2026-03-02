@@ -142,11 +142,13 @@ class Kmeans():
             # Step 3  --> assign points to the closest centroid
             # We take the difference between points and clusters
             # we use np.newaxis as X is (m X n) and cluster_centers_ (m X n) so we can't devide all i need to devide each sample point from all centroids at once
-            # So convert from (m x n) to (m x d x n) so 3D matrix (samples, centroids and differ)
+            # So convert from (m x n) to (m x 1 x n) 3D matrix (samples, new axis to devide and n) to get (m, k, n_differ) so it is 3D
             differ = X[:, np.newaxis] - self.cluster_centers_
-            # Here we choose axis = 2 to reach this diminsion of differ
+            # Here we choose axis = 2 to reach this diminsion of differ (n_differ) to get it is sum
+            # So we have new array (m, n_differ) 2D matrix
             differ_sqr = np.sum(differ ** 2, axis=2)
-            # Choose min distance as differ_sqr has samples as index and differ between centroids as columns (label)
+            # Choose min distance so we go to axis = 1 to reach this diminsion of differ (n_differ) to get it is min
+            # So we have new array (min_n_differ) 1D matrix
             self.labels_ = np.argmin(differ_sqr, axis=1)
             
             # Step 4
@@ -157,12 +159,14 @@ class Kmeans():
             # Loop over current clusters
             for cluster in range(self.n_clusters):
                 # Get all current cluster points from labels_
+                # Filter with 1D matrix (n_differ)
                 mask = (self.labels_ == cluster)
                 cluster_points = X[mask]
 
                 # Make sure the cluster has points
                 if len(cluster_points) > 0:
                     # Calculate the average 
+                    # Get mean of array so we go to axis = 0 to reach this diminsion of min differ (min_n_differ) 
                     new_centers = cluster_points.mean(axis=0)
                     new_centroids.append(new_centers)
                 else:
