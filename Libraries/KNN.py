@@ -3,16 +3,17 @@ import numpy as np
 class KNN():
 
     # Initialization
-    def __init__(self,task = 'Classification', k = 3, distance_metric = 'Euclidean'):
+    def __init__(self,task = 'Classification', k = 3, p= 2):
+        # Parameter of p is distance metric
         self.task = task
         self.k = k
-        self.distance_metric = distance_metric
+        self.p = p
 
     # distance function
     def _distance(self, a, b):
-        if self.distance_metric == 'Euclidean':
+        if self.p == 2:
             return np.sqrt(np.sum((a - b) ** 2))
-        elif self.distance_metric == 'Manhattan':
+        elif self.p == 1:
             return np.sum(np.abs(a - b))
         else:
             raise ValueError('Unknown distance metric.')
