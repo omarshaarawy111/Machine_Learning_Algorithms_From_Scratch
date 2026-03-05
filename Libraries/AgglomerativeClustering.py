@@ -80,7 +80,7 @@ class AgglomerativeClustering():
     
     # Silhouette function
     def _calculate_silhouette(self, X):
-    # Get samples number
+        # Get samples number
         n_samples = X.shape[0]
 
         # Get all scores cause later we get the mean
@@ -207,8 +207,8 @@ class AgglomerativeClustering():
                 # Intialize labels
                 self.labels_ = np.zeros(n_samples)
                 # Intialize centroids
-                # Num of centroids ==> num of clusters x num of features with comfortable float data type
-                self.centroids_ = np.zeros((self.n_clusters, self.X.shape[1]), dtype=float)
+                # Num of centroids ==> num of clusters x num of features 
+                self.centroids_ = np.zeros((self.n_clusters, self.X.shape[1]))
 
                 for cluster_label, c_id in enumerate(current_clusters_ids):
                     # Cluster _label --> 0, 1, 2 and c_id is the id of cluster in the current and each id related to cluster in dictionary
@@ -236,9 +236,8 @@ class AgglomerativeClustering():
     # Predict
     def predict(self, X_test):
         # Here it is just geaometric prediction
-        # Convert X to array
-        # Comfortable with float data type
-        X_test = np.array(X_test, dtype=float)
+        # Convert X_test to array
+        X_test = np.array(X_test)
         # Return predicstions
         preds = []
         for x in X_test:
