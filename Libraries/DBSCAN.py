@@ -79,7 +79,10 @@ class DBSCAN():
         n_samples = X.shape[0] 
 
         # We will give noise -1 and cluster id (cores and borders) 0 then 1 and 2 and so on
-        # We assume at beggining that all data points are labeled as -1 --> because noise label is -1 which is the start of journey
+        # We assume at beggining that all data points are labeled as -1 --> because unvisited/noise label is -1 which is the start of journey
+        # -1 means unvisted or noise at the begging
+        # Later -1 may be core or border if it is found as neighbor and success with one condition
+        # If it is not neighbour nor core then it is left after looping as -1
         # Once the point vistsed it will be labeled as 0, 1, 2 etc no more -1
         self.labels_ = np.full(n_samples, -1)
         # Cluster id intialization at 0
@@ -99,7 +102,10 @@ class DBSCAN():
 
         # Loop over all points
         for i in range(n_samples):
+            # After looping with all samples -1 left at the end gonna be noise and means it never succeed any condition
             # If point is already visited before
+            # If not -1 means it is core or border before
+            # That means we must stop
             if self.labels_[i] != -1:
                 continue
 
@@ -112,6 +118,7 @@ class DBSCAN():
             if len(neighbors) < self.min_samples:
                 # This is not core point
                 # So we cant build neighborhood or get neighbors
+                # We left it as -1 may be it could be border later or noise
                 continue
 
             # If it is core so we add it to core indices list
@@ -132,8 +139,10 @@ class DBSCAN():
                 current_point = queue.pop(0)
 
                 if self.labels_[current_point] == -1:
-                    # Means was noise
-                    # But currently it is border point now (neighbor)
+                    # Noise within cluster i swear
+                    # Means was noise or univisted
+                    # So we join it and give it cluster id
+                    # So -1 will be left to unvisited only
                     self.labels_[current_point] = cluster_id
 
                 if self.labels_[current_point] != -1 and self.labels_[current_point] != cluster_id:
@@ -141,6 +150,8 @@ class DBSCAN():
                     continue
 
                 if self.labels_[current_point] == cluster_id and current_point != i:
+                    # Means if the point already in my cluster and it isn't the original looping point
+                    # Means different point but within my cluster
                     continue
 
                 # At the end the border point is part of cluster
@@ -157,7 +168,7 @@ class DBSCAN():
 
             # Here we exapnd and get the previous id now it is the turn of the next cluster id
             cluster_id +=1
-
+            
             # Silhouette score
             self.silhouette_ = self._calculate_silhouette(X)
             return self
