@@ -65,7 +65,7 @@ class AgglomerativeClustering():
                     # X[c_indices] is 2D matrix (m, n) so mean will produce 1D matrix which (nmeans, )
                     mu1 = np.mean(self.X[c1_indices], axis = 0)
                     mu2 = np.mean(self.X[c2_indices], axis = 0)
-                    d = (n1+n2) / (n1*n2) * np.sum((mu1*mu2) ** 2)
+                    d = (n1+n2) / (n1*n2) * np.sum((mu1 - mu2) ** 2)
                 else:
                     # Handle error of methods
                     raise ValueError('Method not found.')
@@ -220,7 +220,7 @@ class AgglomerativeClustering():
                     # Add centroids for later prediction
                     # Cenroids added per cluster_label
                     # Centroids is just key and value where cluster_label(already dictionary) : mean of points if this cluster label
-                    self.centroids_[cluster_label] = np.mean(self.X[clusters[c_id]]) 
+                    self.centroids_[cluster_label] = np.mean(self.X[clusters[c_id]], axis = 0) 
 
                     
             # Go to next level
@@ -248,8 +248,11 @@ class AgglomerativeClustering():
             # Get norm from axis = 1 which norm of each feature difference
             # dist is 1D matrix (mdist,)
             dists = np.linalg.norm(self.centroids_ - x, axis=1)
+            # We don't need labels_ matrix as it is for fit_predict for first time
+            # We got the min distance index which is number of centroid which is label itself 
+            # As centroid 0 equivelant to label 0 and so on
             # Assign label of nearest distance and assign its labal
-            preds.append(self.labels_[np.argmin(dists)])
+            preds.append(np.argmin(dists))
         return np.array(preds)
     
     # Dendrogram draw
