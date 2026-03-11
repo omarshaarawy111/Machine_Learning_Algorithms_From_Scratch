@@ -101,7 +101,7 @@ class AgglomerativeClustering():
 
             # intialize b to get min b at the end 
             b = np.inf
-            # Loop over other cluster
+            # Loop over other clusters
             for label in range(self.n_clusters):
                 # Get b(i) so we work with the closets cluster ignoring our current one
                 if label == self.labels_[i]:
@@ -238,7 +238,7 @@ class AgglomerativeClustering():
         # Here it is just geaometric prediction
         # Convert X_test to array
         X_test = np.array(X_test)
-        # Return predicstions
+        # Return predictions
         preds = []
         for x in X_test:
             # Here we assign cluster based on the standard method which is geometric assignment (centroids based)
